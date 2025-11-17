@@ -362,7 +362,6 @@ def handle_client(conn: socket.socket, addr: Tuple[str, int],
 
 # ------------- Main server loop -------------
 
-
 def main():
     host, port, server_cert_path, server_key_path, ca_cert_path = load_env_config()
 
@@ -373,21 +372,31 @@ def main():
     print(f"[CONFIG] Server cert: {server_cert_path}")
     print(f"[CONFIG] CA cert: {ca_cert_path}")
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind((host, port))
-        s.listen(5)
-        print("[SERVER] Waiting for connections...")
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((host, port))
+            s.listen(5)
+            print("[SERVER] Waiting for connections... (Press Ctrl+C to stop)")
 
-        while True:
-            conn, addr = s.accept()
-            # Handle each client in its own thread (simple concurrency)
-            t = threading.Thread(
-                target=handle_client,
-                args=(conn, addr, server_cert_pem, server_key_path, ca_cert_pem),
-                daemon=True,
-            )
-            t.start()
+            while True:
+                try:
+                    conn, addr = s.accept()
+                except KeyboardInterrupt:
+                    print("\n[SERVER] Shutting down gracefully...")
+                    break
+
+                t = threading.Thread(
+                    target=handle_client,
+                    args=(conn, addr, server_cert_pem, server_key_path, ca_cert_pem),
+                    daemon=True,
+                )
+                t.start()
+
+    except KeyboardInterrupt:
+        print("\n[SERVER] Forced stop.")
+
+    print("[SERVER] Exit complete.")
 
 
 if __name__ == "__main__":
